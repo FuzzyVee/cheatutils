@@ -1,7 +1,7 @@
 package com.zergatul.cheatutils.webui;
 
 import com.zergatul.cheatutils.common.Registries;
-import com.zergatul.cheatutils.controllers.SchematicaController;
+import com.zergatul.cheatutils.modules.automation.Schematica;
 import com.zergatul.cheatutils.schematics.InvalidFormatException;
 import com.zergatul.cheatutils.schematics.PlacingSettings;
 import com.zergatul.cheatutils.schematics.SchemaFile;
@@ -36,13 +36,13 @@ public class SchematicaPlaceApi extends ApiBase {
             }
         }
 
-        SchematicaController.instance.place(schema, request.placing);
+        Schematica.instance.place(schema, request.placing);
         return "{}";
     }
 
     @Override
     public String delete(String id) {
-        SchematicaController.instance.clear();
+        Schematica.instance.clear();
         return "{}";
     }
 

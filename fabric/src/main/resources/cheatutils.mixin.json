@@ -35,6 +35,11 @@
     "common.accessors.TextureStateShardAccessor",
     "common.accessors.WalkAnimationStateAccessor",
 
+    "common.schematics.MixinLevelChunkSection",
+    "common.schematics.MixinSectionBufferBuilderPack",
+    "common.schematics.MixinSectionCompilerResults",
+    "common.schematics.MixinSectionRenderDispatcherRebuildTask",
+
     "common.MixinAbstractBoat",
     "common.MixinAbstractContainerMenu",
     "common.MixinAbstractContainerScreen",
@@ -62,7 +67,6 @@
     "common.MixinKeyBindingListKeyEntry",
     "common.MixinLevelChunk",
     "common.MixinLevelRenderer",
-    "common.MixinLevelRenderer2",
     "common.MixinLivingEntity",
     "common.MixinLocalPlayer",
     "common.MixinMinecraft",
@@ -81,6 +85,7 @@
     "common.MixinUser",
     "common.MixinWeatherEffectRenderer",
 
+    "fabric.schematics.MixinSectionCompiler",
     "fabric.MixinAbstractContainerScreen",
     "fabric.MixinGameRenderer",
     "fabric.MixinGuiGraphics",
