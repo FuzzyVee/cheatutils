@@ -34,7 +34,7 @@ public class SchematicFile implements SchemaFileEditable {
     private final Map<BlockState, Integer> reversePalette;
 
     public SchematicFile(byte[] data) throws IOException, InvalidFormatException {
-        this(NbtIo.readCompressed(new ByteArrayInputStream(data), NbtAccounter.create(104857600L)));
+        this(NbtIo.readCompressed(new ByteArrayInputStream(data), NbtAccounter.create(MAX_NBT_SIZE)));
     }
 
     public SchematicFile(int width, int height, int length) {

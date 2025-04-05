@@ -52,6 +52,10 @@ export function createComponent(template) {
             },
             onFileSelected() {
                 this.getFile().then(file => {
+                    if (file == null) {
+                        this.schematic = null;
+                        return;
+                    }
                     http.post('/api/schematica-upload', file).then(response => {
                         if (response.error) {
                             alert(response.error);

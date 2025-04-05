@@ -42,7 +42,6 @@ public class Schematica {
     private final Minecraft mc = Minecraft.getInstance();
     private final Long2ObjectMap<SectionInfo> lookup = new Long2ObjectOpenHashMap<>();
     private final List<Entry> entries = new ArrayList<>();
-    private final RandomSource random = new JavaRandom(0);
     private final SlotSelector slotSelector = new SlotSelector();
 
     private Schematica() {
@@ -61,12 +60,19 @@ public class Schematica {
         return config.enabled && config.showMissingBlockGhosts;
     }
 
+    public synchronized BlockState getBlockState(BlockPos pos) {
+        return getBlockState(pos.getX(), pos.getY(), pos.getZ());
+    }
+
     public synchronized BlockState getBlockState(int x, int y, int z) {
         if (y < -64 || y >= 320) {
             return Blocks.AIR.defaultBlockState();
         }
 
-        long index = ChunkSection.asLongIndex(x, y, z);
+        long index = SectionPos.asLong(
+                SectionPos.blockToSectionCoord(x),
+                SectionPos.blockToSectionCoord(y),
+                SectionPos.blockToSectionCoord(z));
         SectionInfo info = lookup.get(index);
         if (info == null) {
             return Blocks.AIR.defaultBlockState();
@@ -75,8 +81,16 @@ public class Schematica {
         return info.getBlockState(x, y, z);
     }
 
-    public synchronized boolean hasBlocksAtSection() {
-        throw new AssertionError();
+    public synchronized SectionInfo getSectionInfo(SectionPos pos) {
+        return lookup.get(pos.asLong());
+    }
+
+    public synchronized boolean hasBlocksAtSection(SectionPos pos) {
+        return lookup.containsKey(pos.asLong());
+    }
+
+    public synchronized boolean hasBlocksAtSection(long index) {
+        return lookup.containsKey(index);
     }
 
     public synchronized void place(SchemaFile file, PlacingSettings placing) {
@@ -99,21 +113,13 @@ public class Schematica {
                     if (section == null) {
                         continue;
                     }
-                    long index = section.asLongIndex(i);
+                    long index = SectionPos.asLong(chunk.getChunkX(), section.getSectionY(), chunk.getChunkZ());
                     SectionInfo info = lookup.computeIfAbsent(index, key -> new SectionInfo());
                     info.add(entry, section);
 
                     if (mc.level != null) {
-                        mc.levelRenderer.setSectionDirty(
-                                SectionPos.blockToSectionCoord(section.minX),
-                                SectionPos.blockToSectionCoord(section.minY),
-                                SectionPos.blockToSectionCoord(section.minZ));
-
-                        mc.level.getChunkSource().onSectionEmptinessChanged(
-                                SectionPos.blockToSectionCoord(section.minX),
-                                SectionPos.blockToSectionCoord(section.minY),
-                                SectionPos.blockToSectionCoord(section.minZ),
-                                false); // hasOnlyAir=false
+                        mc.levelRenderer.setSectionDirty(section.getSectionX(), section.getSectionY(), section.getSectionZ());
+                        mc.level.getChunkSource().onSectionEmptinessChanged(section.getSectionX(), section.getSectionY(), section.getSectionZ(), false); // hasOnlyAir=false
                     }
                 }
             }
@@ -122,12 +128,10 @@ public class Schematica {
 
     public synchronized void clear() {
         TickEndExecutor.instance.execute(() -> {
-            for (SectionInfo info : lookup.values()) {
-                ChunkSection section = info.getFirstSection();
-                mc.levelRenderer.setSectionDirty(
-                        SectionPos.blockToSectionCoord(section.minX),
-                        SectionPos.blockToSectionCoord(section.minY),
-                        SectionPos.blockToSectionCoord(section.minZ));
+            if (mc.level != null) {
+                for (SectionInfo info : lookup.values()) {
+                    mc.levelRenderer.setSectionDirty(info.x, info.y, info.z);
+                }
             }
 
             lookup.clear();
@@ -187,89 +191,6 @@ public class Schematica {
         if (blockInHand == state.getBlock()) {
             BlockUtils.applyPlacingPlan(plan, config.useShift);
         }
-    }
-
-    private synchronized void onRenderSolidLayer(RenderWorldLayerEvent event) {
-        SchematicaConfig config = ConfigStore.instance.getConfig().schematicaConfig;
-        if (!config.enabled) {
-            return;
-        }
-
-        if (mc.level == null) {
-            return;
-        }
-
-        /*Vec3 view = event.getCamera().getPosition();
-
-        if (config.showMissingBlockGhosts) {
-            RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(true);
-            RenderSystem.enableCull();
-            RenderSystem.enableBlend();
-            RenderSystem.setShaderColor(1.0f, 0.5f, 0.5f, 1f);
-
-            Map<BlockPos, BlockState> ghosts = new HashMap<>();
-            for (Entry entry : entries) {
-                entry.forEachMissingState(view, config.missingBlockGhostsMaxDistance, ghosts::put);
-            }
-
-            BlockPos.MutableBlockPos neighPos = new BlockPos.MutableBlockPos();
-            for (var mapEntry : ghosts.entrySet()) {
-                BlockPos pos = mapEntry.getKey();
-                BlockState state = mapEntry.getValue();
-                BlockStateModel model = mc.getBlockRenderer().getBlockModel(state);
-                for (var direction : Direction.values()) {
-                    neighPos.setX(pos.getX() + direction.getStepX());
-                    neighPos.setY(pos.getY() + direction.getStepY());
-                    neighPos.setZ(pos.getZ() + direction.getStepZ());
-                    if (!ghosts.containsKey(neighPos)) {
-                        List<BlockModelPart> parts = model.collectParts(random);
-                        List<BakedQuad> quads = parts.stream().flatMap(part -> part.getQuads(direction).stream()).toList();
-                        if (!quads.isEmpty()) {
-                            BakedQuad quad = quads.get(0);
-                            TextureAtlasSprite sprite = quad.sprite();
-                            BufferBuilder bufferBuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-                            RenderSystem.setShaderTexture(0, mc.getTextureManager().getTexture(sprite.atlasLocation()).getTexture());
-
-                            FaceInfo face = FaceInfo.fromFacing(direction);
-                            FaceInfo.VertexInfo info;
-
-                            info = face.getVertexInfo(0);
-                            bufferBuilder.addVertex(
-                                            (float) ((info.xFace == FaceInfo.Constants.MIN_X ? pos.getX() : pos.getX() + 1) - view.x),
-                                            (float) ((info.yFace == FaceInfo.Constants.MIN_Y ? pos.getY() : pos.getY() + 1) - view.y),
-                                            (float) ((info.zFace == FaceInfo.Constants.MIN_Z ? pos.getZ() : pos.getZ() + 1) - view.z))
-                                    .setUv(sprite.getU0(), sprite.getV0());
-
-                            info = face.getVertexInfo(1);
-                            bufferBuilder.addVertex(
-                                            (float) ((info.xFace == FaceInfo.Constants.MIN_X ? pos.getX() : pos.getX() + 1) - view.x),
-                                            (float) ((info.yFace == FaceInfo.Constants.MIN_Y ? pos.getY() : pos.getY() + 1) - view.y),
-                                            (float) ((info.zFace == FaceInfo.Constants.MIN_Z ? pos.getZ() : pos.getZ() + 1) - view.z))
-                                    .setUv(sprite.getU0(), sprite.getV1());
-
-                            info = face.getVertexInfo(2);
-                            bufferBuilder.addVertex(
-                                            (float) ((info.xFace == FaceInfo.Constants.MIN_X ? pos.getX() : pos.getX() + 1) - view.x),
-                                            (float) ((info.yFace == FaceInfo.Constants.MIN_Y ? pos.getY() : pos.getY() + 1) - view.y),
-                                            (float) ((info.zFace == FaceInfo.Constants.MIN_Z ? pos.getZ() : pos.getZ() + 1) - view.z))
-                                    .setUv(sprite.getU1(), sprite.getV1());
-
-                            info = face.getVertexInfo(3);
-                            bufferBuilder.addVertex(
-                                            (float) ((info.xFace == FaceInfo.Constants.MIN_X ? pos.getX() : pos.getX() + 1) - view.x),
-                                            (float) ((info.yFace == FaceInfo.Constants.MIN_Y ? pos.getY() : pos.getY() + 1) - view.y),
-                                            (float) ((info.zFace == FaceInfo.Constants.MIN_Z ? pos.getZ() : pos.getZ() + 1) - view.z))
-                                    .setUv(sprite.getU1(), sprite.getV0());
-
-                            //RenderHelper.drawBuffer(SharedVertexBuffer.instance, bufferBuilder, event.pose(), event.getProjection(), CoreShaders.POSITION_TEX);
-                        }
-                    }
-                }
-            }
-
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        }*/
     }
 
     private synchronized void onRender(RenderWorldLastEvent event) {
@@ -518,7 +439,7 @@ public class Schematica {
             }
         }
 
-        public void onChunkLoaded( LevelChunk levelChunk) {
+        public void onChunkLoaded(LevelChunk levelChunk) {
             long chunkIndex = chunkToChunkIndex(levelChunk);
             Chunk chunk = chunks.get(chunkIndex);
             if (chunk != null) {
@@ -560,6 +481,14 @@ public class Schematica {
             minX = x;
             minZ = z;
             sections = new ChunkSection[MAX_SECTION_Y - MIN_SECTION_Y];
+        }
+
+        public int getChunkX() {
+            return SectionPos.blockToSectionCoord(minX);
+        }
+
+        public int getChunkZ() {
+            return SectionPos.blockToSectionCoord(minZ);
         }
 
         public BlockState getBlockState(int x, int y, int z) {
@@ -626,6 +555,18 @@ public class Schematica {
             minY = y;
             minZ = z;
             states = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, Blocks.AIR.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
+        }
+
+        public int getSectionX() {
+            return SectionPos.blockToSectionCoord(minX);
+        }
+
+        public int getSectionY() {
+            return SectionPos.blockToSectionCoord(minY);
+        }
+
+        public int getSectionZ() {
+            return SectionPos.blockToSectionCoord(minZ);
         }
 
         public BlockState getBlockState(int x, int y, int z) {
@@ -699,19 +640,6 @@ public class Schematica {
             states.set(x, y, z, state); // locking can be slow?
         }
 
-        public long asLongIndex(int sectionY) {
-            long x = (30000000 + minX) >> 4;
-            long z = (30000000 + minZ) >> 4;
-            return (x << (28 + 6)) | (z << 6) | sectionY;
-        }
-
-        public static long asLongIndex(int blockX, int blockY, int blockZ) {
-            long x = (30000000 + blockX) >> 4;
-            long y = (blockY - Chunk.MIN_Y) >> 4;
-            long z = (30000000 + blockZ) >> 4;
-            return (x << (28 + 6)) | (z << 6) | y;
-        }
-
         private boolean isMissing(BlockState chunkState, BlockState finalState) {
             return chunkState.canBeReplaced() && !finalState.isAir();
         }
@@ -749,14 +677,40 @@ public class Schematica {
         }
     }
 
-    private static class SectionInfo {
+    public static class SectionInfo {
 
+        private int x, y, z;
         private List<Entry> entries;
         private List<ChunkSection> sections;
         private Entry entry;
         private ChunkSection section;
 
-        public void add(Entry entry, ChunkSection section) {
+        public boolean contains(BlockPos pos) {
+            return SectionPos.asLong(pos) == SectionPos.asLong(x, y, z);
+        }
+
+        public BlockState getBlockState(BlockPos pos) {
+            return getBlockState(pos.getX(), pos.getY(), pos.getZ());
+        }
+
+        public BlockState getBlockState(int x, int y, int z) {
+            x &= 0xF;
+            y &= 0xF;
+            z &= 0xF;
+
+            if (section != null) {
+                return section.getBlockState(x, y, z);
+            }
+            for (ChunkSection section : sections) {
+                BlockState state = section.getBlockState(x, y, z);
+                if (!state.isAir()) {
+                    return state;
+                }
+            }
+            return Blocks.AIR.defaultBlockState();
+        }
+
+        private void add(Entry entry, ChunkSection section) {
             if (this.entry != null) {
                 entries = new ArrayList<>(2);
                 entries.add(this.entry);
@@ -772,27 +726,9 @@ public class Schematica {
             } else {
                 this.entry = entry;
                 this.section = section;
-            }
-        }
-
-        public BlockState getBlockState(int x, int y, int z) {
-            if (section != null) {
-                return section.getBlockState(x & 0xF, y & 0xF, z & 0xF);
-            }
-            for (ChunkSection section : sections) {
-                BlockState state = section.getBlockState(x & 0xF, y & 0xF, z & 0xF);
-                if (!state.isAir()) {
-                    return state;
-                }
-            }
-            return Blocks.AIR.defaultBlockState();
-        }
-
-        public ChunkSection getFirstSection() {
-            if (section != null) {
-                return section;
-            } else {
-                return sections.getFirst();
+                this.x = section.getSectionX();
+                this.y = section.getSectionY();
+                this.z = section.getSectionZ();
             }
         }
     }
