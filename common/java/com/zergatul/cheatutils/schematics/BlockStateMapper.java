@@ -2,6 +2,7 @@ package com.zergatul.cheatutils.schematics;
 
 import com.zergatul.cheatutils.common.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -10,8 +11,38 @@ import net.minecraft.world.level.block.state.properties.Property;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BlockStateMapper {
+
+    private static final Pattern pattern = Pattern.compile("^(?<block>[a-z0-9_.-]+:[a-z0-9/._-]+)(?:\\[(?<properties>[a-z0-9_]+=[a-z0-9_]+(?:,[a-z0-9_]+=[a-z0-9_]+)*)\\])?$");
+
+    public static BlockState map(String value) {
+        Matcher matcher = pattern.matcher(value);
+        if (matcher.find()) {
+            MatchResult result = matcher.toMatchResult();
+            CompoundTag compound = new CompoundTag();
+            compound.put("Name", StringTag.valueOf(result.group("block")));
+
+            String propertiesStr = result.group("properties");
+            if (propertiesStr != null && !propertiesStr.isEmpty()) {
+                CompoundTag properties = new CompoundTag();
+                for (String propertyStr : propertiesStr.split(",")) {
+                    String[] parts = propertyStr.split("=");
+                    if (parts.length != 2) {
+                        return Blocks.AIR.defaultBlockState();
+                    }
+                    properties.put(parts[0], StringTag.valueOf(parts[1]));
+                }
+            }
+
+            return map(compound);
+        } else {
+            return Blocks.AIR.defaultBlockState();
+        }
+    }
 
     public static BlockState map(CompoundTag compound) {
         return compound.getString("Name").map(name -> {

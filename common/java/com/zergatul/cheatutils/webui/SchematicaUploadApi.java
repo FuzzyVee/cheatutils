@@ -23,7 +23,7 @@ public class SchematicaUploadApi extends ApiBase {
         try {
             schema = SchemaFormatFactory.parse(data, request.name);
         }
-        catch (IOException | InvalidFormatException e) {
+        catch (InvalidFormatException e) {
             return gson.toJson(new ErrorResponse(e.getMessage()));
         }
 
