@@ -10,22 +10,23 @@
         <div>
             <button style="width: 200px;" @click="clear()">Clear</button>
         </div>
+
+        <fieldset>
+            <legend>
+                <switch-checkbox v-model="config.renderBlocks" @change="update()">
+                    Render Blocks
+                </switch-checkbox>
+            </legend>
+            <div class="section-description">
+                Render schematica in your world.
+            </div>
+        </fieldset>
+
         <fieldset>
             <legend>
                 Missing Blocks
             </legend>
             <table>
-                <tr>
-                    <td>
-                        <switch-checkbox v-model="config.showMissingBlockGhosts" @change="update()">Show as ghost blocks (DISABLED FOR NOW)</switch-checkbox>
-                    </td>
-                    <td class="pad-left">
-                        <div class="flex-row">
-                            <span class="field-description">Max distance:</span>
-                            <input type="text" class="w5" v-model="config.missingBlockGhostsMaxDistance" @change="update()">
-                        </div>
-                    </td>
-                </tr>
                 <tr>
                     <td>
                         <switch-checkbox v-model="config.showMissingBlockTracers" @change="update()">Show tracers</switch-checkbox>
@@ -160,7 +161,7 @@
                     Size: W={{ schematic.width }} H={{ schematic.height }} L={{ schematic.length }}
                 </div>
                 <div>
-                    Palette (Click on block state to edit, press &lt;Enter&gt; to stop editing):
+                    Palette (Click on block state to edit, while focused in text input: press &lt;Enter&gt; to apply edit change, or &lt;Esc&gt; to cancel):
                 </div>
                 <table>
                     <thead>
@@ -180,7 +181,7 @@
                                 {{ item.stateFormatted }}
                             </td>
                             <td v-if="item.editing">
-                                <input type="text" v-model="item.editText">
+                                <auto-complete :value="item.editText" :list="blockStatesFormatted" @apply="onItemEditApply(item, $event)" @cancel="onItemEditCancel(item)"></auto-complete>
                             </td>
                         </tr>
                     </tbody>

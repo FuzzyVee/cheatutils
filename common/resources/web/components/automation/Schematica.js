@@ -2,6 +2,25 @@ import * as http from '/http.js'
 import { components } from '/components.js'
 import { withCss } from '/components/Loader.js'
 
+let blockStatesPromise = null;
+let blockStatesFormattedPromise = null;
+
+function getBlockStates() {
+    if (blockStatesPromise == null) {
+        blockStatesPromise = http.get('/api/block-state');
+    }
+    return blockStatesPromise;
+}
+
+function getBlockStatesFormatted() {
+    if (blockStatesFormattedPromise == null) {
+        blockStatesFormattedPromise = new Promise((resolve, reject) => {
+            getBlockStates().then(states => resolve(states.map(formatBlockState))).catch(reject);
+        });
+    }
+    return blockStatesFormattedPromise;
+}
+
 function formatBlockState(state) {
     let result = state.block;
     if (state.properties) {
@@ -28,6 +47,7 @@ export function createComponent(template) {
                 config: null,
                 schematic: null,
                 slots: null,
+                blockStatesFormatted: null,
                 placing: {
                     flipX: false,
                     flipY: false,
@@ -40,8 +60,13 @@ export function createComponent(template) {
         },
         methods: {
             beginEdit(item) {
-                item.editing = true;
-                item.editText = item.formatBlockState;
+                getBlockStatesFormatted().then(states => {
+                    if (this.blockStatesFormatted == null) {
+                        this.blockStatesFormatted = states;
+                    }
+                    item.editing = true;
+                    item.editText = item.stateFormatted;
+                });
             },
             clear() {
                 http.delete('/api/schematica-place/_');
@@ -111,10 +136,35 @@ export function createComponent(template) {
                 this.config.autoSelectSlots = slots;
                 this.update();
             },
+            async onItemEditApply(item, state) {
+                const states = await getBlockStates();
+                const formatted = await getBlockStatesFormatted();
+                const index = formatted.indexOf(state);
+                if (index < 0) {
+                    alert('Cannot find matching block state');
+                    item.editing = false;
+                    return;
+                }
+                item.state = states[index];
+                item.stateFormatted = state;
+                item.editing = false;
+            },
+            onItemEditCancel(item) {
+                item.editing = false;
+            },
             place() {
+                if (this.schematic.paletteMap.some(e => e.editing)) {
+                    alert('Finish BlockState editing before placing');
+                    return;
+                }
                 this.getFile().then(file => {
                     file.placing = this.placing;
-                    file.palette = this.schematic.paletteMap;
+                    file.palette = this.schematic.paletteMap.map(e => {
+                        return {
+                            id: e.id,
+                            state: e.state
+                        };
+                    });
                     http.post('/api/schematica-place', file);
                 });
             },
@@ -129,6 +179,7 @@ export function createComponent(template) {
 
     components.add(args, 'Radio');
     components.add(args, 'SwitchCheckbox');
+    components.add(args, 'AutoComplete');
 
     return withCss(import.meta.url, args);
 }

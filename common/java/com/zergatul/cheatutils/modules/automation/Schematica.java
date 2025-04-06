@@ -1,7 +1,6 @@
 package com.zergatul.cheatutils.modules.automation;
 
 import com.zergatul.cheatutils.common.Events;
-import com.zergatul.cheatutils.common.events.RenderWorldLayerEvent;
 import com.zergatul.cheatutils.concurrent.TickEndExecutor;
 import com.zergatul.cheatutils.configs.ConfigStore;
 import com.zergatul.cheatutils.configs.SchematicaConfig;
@@ -19,7 +18,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
@@ -57,7 +55,7 @@ public class Schematica {
 
     public boolean isGhostRenderingEnabled() {
         SchematicaConfig config = getConfig();
-        return config.enabled && config.showMissingBlockGhosts;
+        return config.enabled && config.renderBlocks;
     }
 
     public synchronized BlockState getBlockState(BlockPos pos) {
