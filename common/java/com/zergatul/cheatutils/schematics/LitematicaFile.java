@@ -1,11 +1,13 @@
 package com.zergatul.cheatutils.schematics;
 
+import com.zergatul.cheatutils.utils.BlockStateMapper;
 import com.zergatul.cheatutils.utils.NbtUtils;
 import net.minecraft.nbt.*;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class LitematicaFile implements SchemaFile {
 
@@ -68,6 +70,11 @@ public class LitematicaFile implements SchemaFile {
     @Override
     public BlockState[] getPalette() {
         return regions[0].palette;
+    }
+
+    @Override
+    public String[] getRawPalette() {
+        return regions[0].rawPalette;
     }
 
     private static LitematicaFile parse(CompoundTag compound) throws InvalidFormatException {
@@ -151,17 +158,19 @@ public class LitematicaFile implements SchemaFile {
         private final int height;
         private final int length;
         private final BlockState[] palette;
+        private final String[] rawPalette;
         private final long[] blocks;
         private final int bitSize;
         private final long bitMask;
         private final int[] summary;
 
-        private Region(String name, int width, int height, int length, BlockState[] palette, long[] blocks) {
+        private Region(String name, int width, int height, int length, PaletteEntry[] palette, long[] blocks) {
             this.name = name;
             this.width = width;
             this.height = height;
             this.length = length;
-            this.palette = palette;
+            this.palette = Arrays.stream(palette).map(PaletteEntry::state).toArray(BlockState[]::new);
+            this.rawPalette = Arrays.stream(palette).map(PaletteEntry::raw).toArray(String[]::new);
             this.blocks = blocks;
             this.bitSize = 32 - Integer.numberOfLeadingZeros(palette.length);
             this.bitMask = (1L << bitSize) - 1L;
@@ -180,7 +189,7 @@ public class LitematicaFile implements SchemaFile {
             int height = Math.abs(sizeTag.getInt(Y_TAG).orElseThrow());
             int length = Math.abs(sizeTag.getInt(Z_TAG).orElseThrow());
 
-            BlockState[] palette = parsePalette(compound.getList(BLOCK_STATE_PALETTE_TAG).orElseThrow());
+            PaletteEntry[] palette = parsePalette(compound.getList(BLOCK_STATE_PALETTE_TAG).orElseThrow());
             long[] blocks = compound.getLongArray(BLOCK_STATES_TAG).orElseThrow();
 
             return new Region(name, width, height, length, palette, blocks);
@@ -206,10 +215,11 @@ public class LitematicaFile implements SchemaFile {
             return summary;
         }
 
-        private static BlockState[] parsePalette(ListTag list) {
-            BlockState[] palette = new BlockState[list.size()];
+        private static PaletteEntry[] parsePalette(ListTag list) {
+            PaletteEntry[] palette = new PaletteEntry[list.size()];
             for (int i = 0; i < list.size(); i++) {
-                palette[i] = BlockStateMapper.map(list.getCompound(i).orElseThrow());
+                CompoundTag compound = list.getCompound(i).orElseThrow();
+                palette[i] = new PaletteEntry(compound.toString(), BlockStateMapper.map(compound));
             }
             return palette;
         }

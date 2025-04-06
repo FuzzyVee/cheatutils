@@ -2,6 +2,18 @@ import * as http from '/http.js'
 import { components } from '/components.js'
 import { withCss } from '/components/Loader.js'
 
+function formatBlockState(state) {
+    let result = state.block;
+    if (state.properties) {
+        result += '[';
+        let names = Object.getOwnPropertyNames(state.properties);
+        names.sort();
+        result += names.map(n => `${n}=${state.properties[n]}`).join(',');
+        result += ']';
+    }
+    return result;
+}
+
 export function createComponent(template) {
     const args = {
         template: template,
@@ -27,6 +39,10 @@ export function createComponent(template) {
             };
         },
         methods: {
+            beginEdit(item) {
+                item.editing = true;
+                item.editText = item.formatBlockState;
+            },
             clear() {
                 http.delete('/api/schematica-place/_');
             },
@@ -69,7 +85,9 @@ export function createComponent(template) {
                                 this.schematic.paletteMap.push({
                                     id: i,
                                     count: this.schematic.summary[i],
-                                    block: this.schematic.palette[i]
+                                    raw: this.schematic.palette[i].raw,
+                                    state: this.schematic.palette[i].state,
+                                    stateFormatted: formatBlockState(this.schematic.palette[i].state)
                                 });
                             }
                         }

@@ -1,10 +1,6 @@
 package com.zergatul.cheatutils.schematics;
 
-import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.state.BlockState;
-
-import java.io.IOException;
-import java.io.OutputStream;
 
 public interface SchemaFile {
 
@@ -16,4 +12,5 @@ public interface SchemaFile {
     BlockState getBlockState(int x, int y, int z);
     int[] getSummary();
     BlockState[] getPalette();
+    String[] getRawPalette();
 }

@@ -1,9 +1,11 @@
 package com.zergatul.cheatutils.schematics;
 
+import com.zergatul.cheatutils.utils.BlockStateMapper;
 import com.zergatul.cheatutils.utils.NbtUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,14 +22,16 @@ public class SpongeSchematicaVersion1File implements SchemaFile {
     private final int height;
     private final int length;
     private final BlockState[] palette;
+    private final String[] rawPalette;
     private final int[] blocks;
     private final int[] summary;
 
-    private SpongeSchematicaVersion1File(int width, int height, int length, BlockState[] palette, int[] blocks) {
+    private SpongeSchematicaVersion1File(int width, int height, int length, PaletteEntry[] palette, int[] blocks) {
         this.width = width;
         this.height = height;
         this.length = length;
-        this.palette = palette;
+        this.palette = Arrays.stream(palette).map(PaletteEntry::state).toArray(BlockState[]::new);
+        this.rawPalette = Arrays.stream(palette).map(PaletteEntry::raw).toArray(String[]::new);
         this.blocks = blocks;
 
         int[] summary = new int[palette.length];
@@ -49,7 +53,7 @@ public class SpongeSchematicaVersion1File implements SchemaFile {
         int height = compound.getInt(HEIGHT_TAG).orElseThrow();
         int length = compound.getInt(LENGTH_TAG).orElseThrow();
 
-        BlockState[] palette = parsePalette(compound.getCompound(PALETTE_TAG).orElseThrow());
+        PaletteEntry[] palette = parsePalette(compound.getCompound(PALETTE_TAG).orElseThrow());
         byte[] encodedBlocks = compound.getByteArray(BLOCK_DATA_TAG).orElseThrow();
         int[] blocks = VarIntDecoder.decode(encodedBlocks);
 
@@ -90,6 +94,11 @@ public class SpongeSchematicaVersion1File implements SchemaFile {
         return palette;
     }
 
+    @Override
+    public String[] getRawPalette() {
+        return rawPalette;
+    }
+
     private static void validateRequiredTags(CompoundTag compound) throws InvalidFormatException {
         if (!NbtUtils.hasShort(compound, WIDTH_TAG)) {
             throw new InvalidFormatException(String.format("Invalid NBT structure. [%s] ShortTag is required.", WIDTH_TAG));
@@ -105,12 +114,12 @@ public class SpongeSchematicaVersion1File implements SchemaFile {
         }
     }
 
-    private static BlockState[] parsePalette(CompoundTag compound) throws InvalidFormatException {
-        Map<Integer, BlockState> map = new HashMap<>();
+    private static PaletteEntry[] parsePalette(CompoundTag compound) throws InvalidFormatException {
+        Map<Integer, PaletteEntry> map = new HashMap<>();
         for (String key : compound.keySet()) {
             BlockState state = BlockStateMapper.map(key);
             int index = compound.getInt(key).orElseThrow();
-            map.put(index, state);
+            map.put(index, new PaletteEntry(key, state));
         }
 
         int maxIndex = map.keySet().stream().max(Integer::compare).orElseThrow();
@@ -118,7 +127,7 @@ public class SpongeSchematicaVersion1File implements SchemaFile {
             throw new InvalidFormatException(String.format("Palette index %d too big.", maxIndex));
         }
 
-        BlockState[] palette = new BlockState[maxIndex + 1];
+        PaletteEntry[] palette = new PaletteEntry[maxIndex + 1];
         for (var entry : map.entrySet()) {
             palette[entry.getKey()] = entry.getValue();
         }

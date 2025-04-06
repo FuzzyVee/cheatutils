@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class SchematicaFile implements SchemaFile {
 
@@ -28,14 +29,16 @@ public class SchematicaFile implements SchemaFile {
     private final byte[] data;
     private final int[] summary;
     private final BlockState[] palette;
+    private final String[] rawPalette;
 
-    private SchematicaFile(int width, int height, int length, byte[] blocks, byte[] data, BlockState[] palette) {
+    private SchematicaFile(int width, int height, int length, byte[] blocks, byte[] data, PaletteEntry[] palette) {
         this.width = width;
         this.height = height;
         this.length = length;
         this.blocks = blocks;
         this.data = data;
-        this.palette = palette;
+        this.palette = Arrays.stream(palette).map(PaletteEntry::state).toArray(BlockState[]::new);
+        this.rawPalette = Arrays.stream(palette).map(PaletteEntry::raw).toArray(String[]::new);
 
         int[] summary = new int[4096];
         int size = width * height * length;
@@ -84,6 +87,11 @@ public class SchematicaFile implements SchemaFile {
         return palette;
     }
 
+    @Override
+    public String[] getRawPalette() {
+        return rawPalette;
+    }
+
     private static SchematicaFile parse(CompoundTag compound) throws InvalidFormatException {
         validateRequiredTags(compound);
 
@@ -109,11 +117,11 @@ public class SchematicaFile implements SchemaFile {
                             size));
         }
 
-        BlockState[] palette = createPalette(compound);
+        PaletteEntry[] palette = createPalette(compound);
         return new SchematicaFile(width, height, length, blocks, data, palette);
     }
 
-    private static BlockState[] createPalette(CompoundTag compound) throws InvalidFormatException {
+    private static PaletteEntry[] createPalette(CompoundTag compound) throws InvalidFormatException {
         if (NbtUtils.hasCompound(compound, SCHEMATICA_MAPPING_TAG)) {
             /*CompoundTag mapping = compound.getCompound(SCHEMATICA_MAPPING).orElseThrow();
             BlockState[] palette = new BlockState[4096];
@@ -131,7 +139,12 @@ public class SchematicaFile implements SchemaFile {
         if (NbtUtils.hasString(compound, MATERIALS_TAG)) {
             String materials = compound.getString(MATERIALS_TAG).orElseThrow();
             if (materials.equals("Alpha")) {
-                return VanillaMapping.get().clone();
+                BlockState[] mapping = VanillaMapping.get();
+                PaletteEntry[] palette = new PaletteEntry[mapping.length];
+                for (int i = 0; i < palette.length; i++) {
+                    palette[i] = new PaletteEntry("#" + i, mapping[i]);
+                }
+                return palette;
             }
             throw new InvalidFormatException(String.format("Failed to create palette. %s=%s is not implemented.", MATERIALS_TAG, materials));
         }

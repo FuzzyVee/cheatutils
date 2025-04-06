@@ -1,6 +1,7 @@
 package com.zergatul.cheatutils.schematics;
 
 import com.mojang.serialization.Dynamic;
+import com.zergatul.cheatutils.utils.BlockStateMapper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.util.datafix.fixes.BlockStateData;
