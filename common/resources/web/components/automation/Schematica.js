@@ -41,10 +41,12 @@ export function createComponent(template) {
                 this.config = response;
                 this.onConfigLoaded();
             });
+            this.reloadSummaries();
         },
         data() {
             return {
                 config: null,
+                summaries: null,
                 schematic: null,
                 slots: null,
                 blockStatesFormatted: null,
@@ -67,9 +69,6 @@ export function createComponent(template) {
                     item.editing = true;
                     item.editText = item.stateFormatted;
                 });
-            },
-            clear() {
-                http.delete('/api/schematica-place/_');
             },
             getFile() {
                 return new Promise((resolve) => {
@@ -165,8 +164,17 @@ export function createComponent(template) {
                             state: e.state
                         };
                     });
-                    http.post('/api/schematica-place', file);
+                    http.post('/api/schematica-place', file).then(() => this.reloadSummaries());
                 });
+            },
+            reloadSummaries() {
+                http.get('/api/schematica-summary').then(response => this.summaries = response);
+            },
+            removeAll() {
+                http.delete('/api/schematica-summary/all').then(() => this.reloadSummaries());
+            },
+            removeAt(index) {
+                http.delete(`/api/schematica-summary/${index}`).then(() => this.reloadSummaries());
             },
             update() {
                 http.post('/api/schematica', this.config).then(response => {

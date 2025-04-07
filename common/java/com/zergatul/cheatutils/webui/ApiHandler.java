@@ -49,6 +49,7 @@ public class ApiHandler implements HttpHandler {
         apis.add(new ClassNameApi());
         apis.add(new SchematicaUploadApi());
         apis.add(new SchematicaPlaceApi());
+        apis.add(new SchematicaSummaryApi());
         apis.add(new WorldDownloadApi());
         apis.add(new EntityConfigMoveApi());
         apis.add(new FreeCamPathApi());

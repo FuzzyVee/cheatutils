@@ -1,14 +1,10 @@
 package com.zergatul.cheatutils.webui;
 
-import com.zergatul.cheatutils.common.Registries;
 import com.zergatul.cheatutils.modules.automation.Schematica;
 import com.zergatul.cheatutils.schematics.InvalidFormatException;
 import com.zergatul.cheatutils.schematics.PlacingSettings;
 import com.zergatul.cheatutils.schematics.SchemaFile;
 import com.zergatul.cheatutils.schematics.SchemaFormatFactory;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
@@ -34,13 +30,7 @@ public class SchematicaPlaceApi extends ApiBase {
             }
         }
 
-        Schematica.instance.place(schema, request.placing);
-        return "{}";
-    }
-
-    @Override
-    public String delete(String id) {
-        Schematica.instance.clear();
+        Schematica.instance.place(schema, request.name, request.placing);
         return "{}";
     }
 

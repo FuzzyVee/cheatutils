@@ -7,9 +7,36 @@
         <div>
             <switch-checkbox v-model="config.enabled" @change="update()">Enabled</switch-checkbox>
         </div>
-        <div>
-            <button style="width: 200px;" @click="clear()">Clear</button>
-        </div>
+
+        <fieldset>
+            <legend>
+                Current Schematics
+            </legend>
+            <table class="summary">
+                <thead>
+                    <tr>
+                        <td>Name</td>
+                        <td>X</td>
+                        <td>Y</td>
+                        <td>Z</td>
+                        <td>
+                            <button style="width: 8em;" @click="removeAll()">Remove All</button>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(summary, index) in summaries">
+                        <td>{{ summary.name }}</td>
+                        <td>{{ summary.x }}</td>
+                        <td>{{ summary.y }}</td>
+                        <td>{{ summary.z }}</td>
+                        <td>
+                            <button style="width: 8em;" @click="removeAt(index)">Remove</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </fieldset>
 
         <fieldset>
             <legend>
