@@ -1,4 +1,4 @@
-package com.zergatul.cheatutils.mixins.common.schematics;
+package com.zergatul.cheatutils.mixins.neoforge.schematics;
 
 import com.zergatul.cheatutils.modules.automation.Schematica;
 import com.zergatul.mixin.ModifyMethodReturnValue;
@@ -18,13 +18,13 @@ public abstract class MixinRenderRegionCache {
     @Unique
     private static SectionPos cheatutils$currentSectionPos;
 
-    @Inject(at = @At("HEAD"), method = "createRegion")
-    private void onCreateRegion(Level level, SectionPos sectionPos, CallbackInfoReturnable<RenderChunkRegion> info) {
+    @Inject(at = @At("HEAD"), method = "createRegion(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/SectionPos;Z)Lnet/minecraft/client/renderer/chunk/RenderChunkRegion;")
+    private void onCreateRegion(Level level, SectionPos sectionPos, boolean nullForEmpty, CallbackInfoReturnable<RenderChunkRegion> info) {
         cheatutils$currentSectionPos = sectionPos;
     }
 
     @ModifyMethodReturnValue(
-            method = "createRegion",
+            method = "createRegion(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/SectionPos;Z)Lnet/minecraft/client/renderer/chunk/RenderChunkRegion;",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/LevelChunk;isSectionEmpty(I)Z"))
     private static boolean onCreateRegionCheckIfSectionIsEmpty(boolean isEmpty) {
         if (!isEmpty) {

@@ -89,7 +89,7 @@ module({
 });
 module({
     group: 'automation',
-    name: 'Schematica (ALPHA)',
+    name: 'Schematica (BETA)',
     component: 'Schematica',
     path: 'schematica',
     tags: ['schematica']

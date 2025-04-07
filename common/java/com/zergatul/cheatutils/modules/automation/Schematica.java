@@ -54,7 +54,7 @@ public class Schematica {
         return getConfig().enabled;
     }
 
-    public boolean isGhostRenderingEnabled() {
+    public boolean isBlockRenderingEnabled() {
         SchematicaConfig config = getConfig();
         return config.enabled && config.renderBlocks;
     }
@@ -102,6 +102,20 @@ public class Schematica {
 
     public synchronized boolean hasBlocksAtSection(long index) {
         return lookup.containsKey(index);
+    }
+
+    public void onBlockRenderingStateChanged() {
+        TickEndExecutor.instance.execute(() -> {
+            boolean renderBlocks = isBlockRenderingEnabled();
+            if (mc.level != null) {
+                for (SectionInfo info : lookup.values()) {
+                    mc.levelRenderer.setSectionDirty(info.x, info.y, info.z);
+                    if (renderBlocks) {
+                        mc.level.getChunkSource().onSectionEmptinessChanged(info.x, info.y, info.z, false); // hasOnlyAir=false
+                    }
+                }
+            }
+        });
     }
 
     public synchronized void place(SchemaFile file, String name, PlacingSettings placing) {
@@ -692,6 +706,7 @@ public class Schematica {
         }
     }
 
+    // immutable
     public static class SectionInfo {
 
         public static final SectionInfo EMPTY = new SectionInfo();
