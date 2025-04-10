@@ -27,15 +27,21 @@
                 <tbody>
                     <tr v-for="(summary, index) in summaries">
                         <td>{{ summary.name }}</td>
-                        <td>{{ summary.x }}</td>
-                        <td>{{ summary.y }}</td>
-                        <td>{{ summary.z }}</td>
+                        <td @click="move(summary, index, 'x')">{{ summary.x }}</td>
+                        <td @click="move(summary, index, 'y')">{{ summary.y }}</td>
+                        <td @click="move(summary, index, 'z')">{{ summary.z }}</td>
                         <td>
                             <button style="width: 8em;" @click="removeAt(index)">Remove</button>
+                        </td>
+                        <td>
+                            <button style="width: 8em;" @click="rescan(index)">Rescan</button>
                         </td>
                     </tr>
                 </tbody>
             </table>
+            <div class="section-description">
+                Click on coordinate to move schematica.
+            </div>
         </fieldset>
 
         <fieldset>

@@ -176,6 +176,30 @@ export function createComponent(template) {
             removeAt(index) {
                 http.delete(`/api/schematica-summary/${index}`).then(() => this.reloadSummaries());
             },
+            rescan(index) {
+                http.post('/api/schematica-summary', {
+                    action: 'rescan',
+                    index: index
+                }).then(() => this.reloadSummaries());
+            },
+            move(summary, index, axis) {
+                let result = prompt(`Enter new ${axis} coordinate:`, summary[axis]);
+                if (result == null) {
+                    return;
+                }
+                let value = parseInt(result);
+                if (isNaN(value)) {
+                    return;
+                }
+                summary[axis] = value;
+                http.post('/api/schematica-summary', {
+                    action: 'move',
+                    index: index,
+                    x: summary.x,
+                    y: summary.y,
+                    z: summary.z
+                }).then(() => this.reloadSummaries());
+            },
             update() {
                 http.post('/api/schematica', this.config).then(response => {
                     this.config = response;
