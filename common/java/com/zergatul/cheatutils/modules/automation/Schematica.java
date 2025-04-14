@@ -496,15 +496,17 @@ public class Schematica {
             z2 = z1 + converter.getLength();
 
             chunks = new HashMap<>();
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             for (int x = 0; x < file.getWidth(); x++) {
                 for (int y = 0; y < file.getHeight(); y++) {
                     for (int z = 0; z < file.getLength(); z++) {
                         BlockState state = file.getBlockState(x, y, z);
                         if (!state.isAir()) {
-                            PlacingConverter.Vec3iMutable vec = converter.convert(x, y, z);
-                            int wx = x1 + vec.x;
-                            int wy = y1 + vec.y;
-                            int wz = z1 + vec.z;
+                            pos.set(x, y, z);
+                            converter.convert(pos);
+                            int wx = x1 + pos.getX();
+                            int wy = y1 + pos.getY();
+                            int wz = z1 + pos.getZ();
                             long chunkIndex = blockToChunkIndex(wx, wz);
                             Chunk chunk = chunks.computeIfAbsent(chunkIndex, k -> new Chunk(wx & 0xFFFFFFF0, wz & 0xFFFFFFF0));
                             chunk.setBlockState(wx & 0x0F, wy, wz & 0x0F, state);

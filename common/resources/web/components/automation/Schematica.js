@@ -51,13 +51,22 @@ export function createComponent(template) {
                 slots: null,
                 blockStatesFormatted: null,
                 placing: {
-                    flipX: false,
-                    flipY: false,
-                    flipZ: false,
-                    rotateX: 0,
-                    rotateY: 0,
-                    rotateZ: 0
-                }
+                    transforms: ['']
+                },
+                allTransforms: [
+                    'Flip X',
+                    'Flip Y',
+                    'Flip Z',
+                    'Rotate X -90deg',
+                    'Rotate X +90deg',
+                    'Rotate X 180deg',
+                    'Rotate Y -90deg',
+                    'Rotate Y +90deg',
+                    'Rotate Y 180deg',
+                    'Rotate Z -90deg',
+                    'Rotate Z +90deg',
+                    'Rotate Z 180deg',
+                ]
             };
         },
         methods: {
@@ -77,7 +86,7 @@ export function createComponent(template) {
                         resolve(null);
                         return;
                     }
-    
+
                     let file = input.files[0];
                     let reader = new FileReader();
                     reader.onload = event => resolve({
@@ -199,6 +208,16 @@ export function createComponent(template) {
                     y: summary.y,
                     z: summary.z
                 }).then(() => this.reloadSummaries());
+            },
+            onTransformChanged() {
+                if (this.placing.transforms[this.placing.transforms.length - 1] != '') {
+                    this.placing.transforms.push('');
+                }
+                for (let i = 0; i < this.placing.transforms.length - 1; i++) {
+                    if (this.placing.transforms[i] == '') {
+                        this.placing.transforms.splice(i, 1);
+                    }
+                }
             },
             update() {
                 http.post('/api/schematica', this.config).then(response => {

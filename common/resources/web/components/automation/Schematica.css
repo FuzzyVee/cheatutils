@@ -48,3 +48,9 @@ div.schematic-info table input {
     box-sizing: border-box;
     width: 100%;
 }
+
+div.transforms {
+    display: flex;
+    gap: 0.5em;
+    margin-top: 0.4em;
+}
