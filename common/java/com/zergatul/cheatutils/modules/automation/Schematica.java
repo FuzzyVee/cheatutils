@@ -7,10 +7,10 @@ import com.zergatul.cheatutils.configs.ConfigStore;
 import com.zergatul.cheatutils.configs.SchematicaConfig;
 import com.zergatul.cheatutils.controllers.BlockEventsProcessor;
 import com.zergatul.cheatutils.modules.utilities.RenderUtilities;
+import com.zergatul.cheatutils.render.Color3dRenderer;
 import com.zergatul.cheatutils.render.GroupLineRenderer;
-import com.zergatul.cheatutils.schematics.PlacingConverter;
-import com.zergatul.cheatutils.schematics.PlacingSettings;
-import com.zergatul.cheatutils.schematics.SchemaFile;
+import com.zergatul.cheatutils.render.LineRenderer;
+import com.zergatul.cheatutils.schematics.*;
 import com.zergatul.cheatutils.utils.*;
 import com.zergatul.cheatutils.common.events.BlockUpdateEvent;
 import com.zergatul.cheatutils.common.events.RenderWorldLastEvent;
@@ -19,6 +19,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.item.BlockItem;
@@ -30,12 +31,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.opengl.GL11;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class Schematica {
 
@@ -308,6 +311,74 @@ public class Schematica {
         });
     }
 
+    public DownloadInfo download(String format, int x1, int y1, int z1, int x2, int y2, int z2) {
+        if (mc.level == null) {
+            return DownloadInfo.of("You have to join Minecraft world");
+        }
+
+        Function<SchematicaOutputData, DownloadInfo> create;
+        if (format.equals("litematic")) {
+            create = LitematicaOutputFile::create;
+        } else {
+            return DownloadInfo.of(String.format("Format '%s' is not supported", format));
+        }
+
+        CompletableFuture<DownloadInfo> future = new CompletableFuture<>();
+        TickEndExecutor.instance.execute(() -> {
+            ClientChunkCache source = mc.level.getChunkSource();
+            for (int x = x1; x <= x2; x += 16) {
+                for (int z = z1; z < z2; z += 16) {
+                    int chunkX = SectionPos.blockToSectionCoord(x);
+                    int chunkZ = SectionPos.blockToSectionCoord(z);
+                    if (!source.hasChunk(chunkX, chunkZ)) {
+                        future.complete(DownloadInfo.of(String.format("Chunk [%d; %d] is not loaded", chunkX, chunkZ)));
+                        return;
+                    }
+                }
+            }
+
+            List<BlockState> palette = new ArrayList<>();
+            palette.add(Blocks.AIR.defaultBlockState());
+            Map<BlockState, Integer> lookup = new HashMap<>();
+            lookup.put(Blocks.AIR.defaultBlockState(), 0);
+
+            int width = x2 - x1 + 1;
+            int height = y2 - y1 + 1;
+            int length = z2 - z1 + 1;
+            int[] blocks = new int[width * height * length];
+            int i = 0;
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            for (int y = y1; y <= y2; y++) {
+                pos.setY(y);
+                for (int z = z1; z <= z2; z++) {
+                    pos.setZ(z);
+                    for (int x = x1; x <= x2; x++) {
+                        pos.setX(x);
+                        BlockState state = mc.level.getBlockState(pos);
+                        Integer index = lookup.get(state);
+                        if (index == null) {
+                            int newIndex = palette.size();
+                            palette.add(state);
+                            lookup.put(state, newIndex);
+                            blocks[i++] = newIndex;
+                        } else {
+                            blocks[i++] = index;
+                        }
+                    }
+                }
+            }
+
+            SchematicaOutputData data = new SchematicaOutputData(width, height, length, palette, blocks);
+            future.complete(create.apply(data));
+        });
+
+        try {
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            return DownloadInfo.of("Interrupted");
+        }
+    }
+
     private void onClientTickEnd() {
         SchematicaConfig config = ConfigStore.instance.getConfig().schematicaConfig;
         if (!config.enabled || !config.autoBuild) {
@@ -373,6 +444,34 @@ public class Schematica {
         }
 
         Vec3 view = event.getCamera().getPosition();
+
+        if (config.create.enabled) {
+            final double gap = 0.0625;
+            {
+                Color3dRenderer renderer = RenderUtilities.instance.getColor3dRenderer();
+                renderer.begin();
+                renderer.cuboid(
+                        (float) (config.create.getX1() - gap - view.x),
+                        (float) (config.create.getY1() - gap - view.y),
+                        (float) (config.create.getZ1() - gap - view.z),
+                        (float) (config.create.getX2() + gap - view.x),
+                        (float) (config.create.getY2() + gap - view.y),
+                        (float) (config.create.getZ2() + gap - view.z),
+                        0.00f, 0.58f, 1.00f, 0.2f);
+                GL11.glDepthMask(false);
+                renderer.end(event.getMvp());
+                GL11.glDepthMask(true);
+            }
+            {
+                LineRenderer render = RenderUtilities.instance.getLineRenderer();
+                render.begin(event, true);
+                render.cuboid(
+                        config.create.getX1() - gap, config.create.getY1() - gap, config.create.getZ1() - gap,
+                        config.create.getX2() + gap, config.create.getY2() + gap, config.create.getZ2() + gap,
+                        1f, 1f, 1f, 1f);
+                render.end();
+            }
+        }
 
         if (config.showMissingBlockTracers) {
             Vec3 tracerCenter = event.getTracerCenter();
@@ -965,4 +1064,15 @@ public class Schematica {
     }
 
     public record EntrySummary(String name, int x, int y, int z) {}
+
+    public record DownloadInfo(byte[] data, String error) {
+
+        public static DownloadInfo of(byte[] data) {
+            return new DownloadInfo(data, null);
+        }
+
+        public static DownloadInfo of(String error) {
+            return new DownloadInfo(null, error);
+        }
+    }
 }

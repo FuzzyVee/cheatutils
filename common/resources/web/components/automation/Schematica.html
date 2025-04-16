@@ -243,19 +243,19 @@
                         <span class="field-description">X:</span>
                     </td>
                     <td>
-                        <input type="text" class="w5" v-model="placing.x">
+                        <input type="number" class="w5" v-model="placing.x">
                     </td>
                     <td>
                         <span class="field-description">Y:</span>
                     </td>
                     <td>
-                        <input type="text" class="w5" v-model="placing.y">
+                        <input type="number" class="w5" v-model="placing.y">
                     </td>
                     <td>
                         <span class="field-description">Z:</span>
                     </td>
                     <td>
-                        <input type="text" class="w5" v-model="placing.z">
+                        <input type="number" class="w5" v-model="placing.z">
                     </td>
                 </tr>
             </table>
@@ -266,6 +266,73 @@
                         <option></option>
                         <option v-for="option in allTransforms" :value="option">{{ option }}</option>
                     </select>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>
+                <switch-checkbox v-model="config.create.enabled" @change="update()">
+                    Create Schematic
+                </switch-checkbox>
+            </legend>
+            <div class="download" v-if="config.create.enabled">
+                <table>
+                    <colgroup>
+                        <col style="width: 1em;">
+                        <col style="width: 6em;">
+                        <col style="width: 1em;">
+                        <col style="width: 6em;">
+                        <col style="width: 1em;">
+                        <col style="width: 6em;">
+                    </colgroup>
+                    <tr>
+                        <td>
+                            <span class="field-description">X<sub>1</sub></span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.x1" @change="update()">
+                        </td>
+                        <td>
+                            <span class="field-description">Y<sub>1</sub>:</span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.y1" @change="update()">
+                        </td>
+                        <td>
+                            <span class="field-description">Z<sub>1</sub>:</span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.z1" @change="update()">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="field-description">X<sub>2</sub>:</span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.x2" @change="update()">
+                        </td>
+                        <td>
+                            <span class="field-description">Y<sub>2</sub>:</span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.y2" @change="update()">
+                        </td>
+                        <td>
+                            <span class="field-description">Z<sub>2</sub>:</span>
+                        </td>
+                        <td>
+                            <input type="number" class="w5" v-model="config.create.z2" @change="update()">
+                        </td>
+                    </tr>
+                </table>
+                <div class="download-settings">
+                    <select v-model="">
+                        <option value="litematic">.litematic</option>
+                        <option value="schem-v1">.schem version1</option>
+                    </select>
+                    <button style="width: 8em;" @click="download()">Download File...</button>
                 </div>
             </div>
         </fieldset>
