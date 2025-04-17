@@ -317,10 +317,12 @@ public class Schematica {
         }
 
         Function<SchematicaOutputData, DownloadInfo> create;
-        if (format.equals("litematic")) {
-            create = LitematicaOutputFile::create;
-        } else {
-            return DownloadInfo.of(String.format("Format '%s' is not supported", format));
+        switch (format) {
+            case "litematic" -> create = LitematicaOutputFile::create;
+            case "schem-v1" -> create = SpongeSchematicaVersion1OutputFile::create;
+            default -> {
+                return DownloadInfo.of(String.format("Format '%s' is not supported", format));
+            }
         }
 
         CompletableFuture<DownloadInfo> future = new CompletableFuture<>();
@@ -369,7 +371,7 @@ public class Schematica {
             }
 
             SchematicaOutputData data = new SchematicaOutputData(width, height, length, palette, blocks);
-            future.complete(create.apply(data));
+            future.complete(create.apply(data.optimized()));
         });
 
         try {
@@ -446,31 +448,7 @@ public class Schematica {
         Vec3 view = event.getCamera().getPosition();
 
         if (config.create.enabled) {
-            final double gap = 0.0625;
-            {
-                Color3dRenderer renderer = RenderUtilities.instance.getColor3dRenderer();
-                renderer.begin();
-                renderer.cuboid(
-                        (float) (config.create.getX1() - gap - view.x),
-                        (float) (config.create.getY1() - gap - view.y),
-                        (float) (config.create.getZ1() - gap - view.z),
-                        (float) (config.create.getX2() + gap - view.x),
-                        (float) (config.create.getY2() + gap - view.y),
-                        (float) (config.create.getZ2() + gap - view.z),
-                        0.00f, 0.58f, 1.00f, 0.2f);
-                GL11.glDepthMask(false);
-                renderer.end(event.getMvp());
-                GL11.glDepthMask(true);
-            }
-            {
-                LineRenderer render = RenderUtilities.instance.getLineRenderer();
-                render.begin(event, true);
-                render.cuboid(
-                        config.create.getX1() - gap, config.create.getY1() - gap, config.create.getZ1() - gap,
-                        config.create.getX2() + gap, config.create.getY2() + gap, config.create.getZ2() + gap,
-                        1f, 1f, 1f, 1f);
-                render.end();
-            }
+            renderCreateBoundaries(event, view, config.create);
         }
 
         if (config.showMissingBlockTracers) {
@@ -550,6 +528,32 @@ public class Schematica {
 
             renderer.end(1.0f, 0.5f, 0.5f, 0.6f);
         }
+    }
+
+    private void renderCreateBoundaries(RenderWorldLastEvent event, Vec3 view, SchematicaConfig.Create create) {
+        final double gap = 0.0625;
+
+        Color3dRenderer quadRenderer = RenderUtilities.instance.getColor3dRenderer();
+        quadRenderer.begin();
+        quadRenderer.cuboid(
+                (float) (create.getX1() - gap - view.x),
+                (float) (create.getY1() - gap - view.y),
+                (float) (create.getZ1() - gap - view.z),
+                (float) (create.getX2() + gap - view.x),
+                (float) (create.getY2() + gap - view.y),
+                (float) (create.getZ2() + gap - view.z),
+                0.00f, 0.58f, 1.00f, 0.2f);
+        GL11.glDepthMask(false);
+        quadRenderer.end(event.getMvp());
+        GL11.glDepthMask(true);
+
+        LineRenderer lineRenderer = RenderUtilities.instance.getLineRenderer();
+        lineRenderer.begin(event, true);
+        lineRenderer.cuboid(
+                create.getX1() - gap, create.getY1() - gap, create.getZ1() - gap,
+                create.getX2() + gap, create.getY2() + gap, create.getZ2() + gap,
+                1f, 1f, 1f, 1f);
+        lineRenderer.end();
     }
 
     private void onChunkLoaded(LevelChunk chunk) {

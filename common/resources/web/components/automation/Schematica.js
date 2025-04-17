@@ -227,6 +227,12 @@ export function createComponent(template) {
                 });
             },
             async download() {
+                let extension = null;
+                switch (this.format) {
+                    case 'litematic': extension = '.litematic'; break;
+                    case 'schem-v1': extension = '.schem'; break;
+                }
+
                 let response = await http.post('/api/schematica-download', {
                     format: this.format,
                     x1: this.config.create.x1,
@@ -249,7 +255,7 @@ export function createComponent(template) {
 
                     let anchor = document.createElement('a');
                     anchor.href = url;
-                    anchor.download = '1.schematic';
+                    anchor.download = 'cheatutils' + extension;
 
                     document.body.appendChild(anchor);
                     anchor.click();

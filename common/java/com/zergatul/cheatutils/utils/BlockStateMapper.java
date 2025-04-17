@@ -90,6 +90,22 @@ public class BlockStateMapper {
         return compound;
     }
 
+    public static String serializeAsString(BlockState state) {
+        StringBuilder builder = new StringBuilder(Registries.BLOCKS.getKey(state.getBlock()).toString());
+        Map<String, String> properties = getPropertiesAsStrings(state);
+        if (!properties.isEmpty()) {
+            builder.append('[');
+            properties.keySet().stream().sorted().forEach(key -> builder
+                    .append(key)
+                    .append('=')
+                    .append(properties.get(key))
+                    .append(','));
+            builder.delete(builder.length() - 1, builder.length());
+            builder.append(']');
+        }
+        return builder.toString();
+    }
+
     private static CompoundTag getPropertiesAsCompound(Map<String, String> properties) {
         CompoundTag compound = new CompoundTag();
         properties.keySet().stream().sorted().forEach(key -> compound.putString(key, properties.get(key)));
